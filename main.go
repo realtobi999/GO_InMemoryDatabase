@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 )
 
 const PORT = 6379
@@ -26,14 +27,35 @@ func main() {
 
 	for {
 		resp := NewResp(conn)
-		_, err := resp.Read()
+		value, err := resp.Read()
 		if err != nil {
-			log.Println("[ERROR] Error reading using RESP: "+err.Error())	
+			log.Println("[ERROR]\tError reading using RESP: "+err.Error())	
 			return 
 		}
 
+		if value.typ != "array" {
+			fmt.Println("[ERROR]\tInvalid request, expected array")
+		continue
+		}
+
+		if len(value.array) == 0 {
+			fmt.Println("[ERROR]\tInvalid request, expected array length > 0")
+			continue
+		}
+
+		command := strings.ToUpper(value.array[0].bulk)
+		args := value.array[1:]
+
 		writer := NewWriter(conn)
-		writer.Write(Value{typ: "string", str: "OK"})
+
+		handler, ok := Handlers[command]
+		if !ok {
+			fmt.Println("[ERROR]\tInvalid command: ", command)
+			writer.Write(Value{typ: "string", str: ""})
+			continue
+		}
+
+		writer.Write(handler(args))
 	}
 
 }
