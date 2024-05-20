@@ -2,24 +2,22 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"os"
 )
 
 const PORT = 6379
 
 func main() {
-	fmt.Printf("[EVENT]\tListening on port: ':%v'", PORT)
+	log.Printf("[EVENT]\tListening on port: ':%v'", PORT)
 
-	// Start  a server
-	server, err := net.Listen("tcp", fmt.Sprintf(":%v", PORT))
+	// start a server
+	server, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%v", PORT))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Listen for connections
+	// listen for connections
 	conn, err := server.Accept()
 	if err != nil {
 		log.Fatal(err)
@@ -27,18 +25,14 @@ func main() {
 	defer conn.Close()
 
 	for {
-		buf := make([]byte, 1024)
-
-		// read message from client
-		_, err := conn.Read(buf)
+		resp := NewResp(conn)
+		value, err := resp.Read()
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-
-			fmt.Println("[ERROR]\tError reading from client: "+err.Error())
-			os.Exit(1)
+			log.Println("[ERROR] Error reading using RESP: "+err.Error())	
+			return 
 		}
+
+		fmt.Println(value)
 
 		conn.Write([]byte("+OK\r\n"))
 	}
